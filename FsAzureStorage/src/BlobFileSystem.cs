@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -49,7 +47,7 @@ namespace LarchSys.FsAzureStorage {
         private IEnumerable<FindData> GetSettings()
         {
             yield return new FindData("Connect to Azure");
-            yield return new FindData("Add Manually");
+            //yield return new FindData("Add Manually");
         }
 
         public void ProcessSettings(CloudPath path)

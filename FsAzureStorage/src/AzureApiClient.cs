@@ -7,6 +7,7 @@ using System.Security.Authentication;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 using Microsoft.Azure.Management.ResourceManager;
 using Microsoft.Azure.Management.Storage;
 using Microsoft.Azure.Management.Storage.Models;
@@ -24,6 +25,8 @@ namespace LarchSys.FsAzureStorage {
 
             var userTokenProvider = new PopupUserTokenProvider(context, config, UserIdentifier.AnyUser);
             var tokenCredentials = new TokenCredentials(userTokenProvider);
+
+            MessageBox.Show("This will open the Microsoft single sign on Screen!\nOK to continue.");
 
             var subscriptions = await new SubscriptionClient(tokenCredentials).Subscriptions.ListAsync();
 
