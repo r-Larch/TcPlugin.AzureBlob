@@ -12,9 +12,12 @@
     <PackageOutputPath>$(SolutionDir)nugets</PackageOutputPath>
     <PackageProjectUrl>https://github.com/r-Larch/TcPlugin.AzureBlob</PackageProjectUrl>
     <PackageIconUrl>https://github.com/r-Larch/TcPlugin.AzureBlob/master/package_icon.png</PackageIconUrl>
+    <Description></Description>
+    <Copyright>Copyright © 2019 René Larch</Copyright>
     <PackageTags>.net Total-Commander-Plugin TC-FileSystem-Plugin Azure-Blob-Storage</PackageTags>
     <!-- Boost the debugging experience when building weavers -->
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
-  </PropertyGroup>
+  
+</PropertyGroup>
 
 </Project>
