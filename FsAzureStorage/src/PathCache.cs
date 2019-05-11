@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -38,7 +38,7 @@ namespace LarchSys.FsAzureStorage {
                 .Select(x => new FindData(x, FileAttributes.Directory))
                 .ToList();
 
-            // yield all cached folders in correct order together with all real folders and files 
+            // yield all cached folders in correct order together with all real folders and files
             var comp = (IComparer<string>) StringComparer.Ordinal;
             foreach (var data in list) {
                 var next = data;

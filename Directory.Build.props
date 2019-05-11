@@ -17,7 +17,7 @@
     <PackageTags>.net Total-Commander-Plugin TC-FileSystem-Plugin Azure-Blob-Storage</PackageTags>
     <!-- Boost the debugging experience when building weavers -->
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
-  
+
 </PropertyGroup>
 
 </Project>
