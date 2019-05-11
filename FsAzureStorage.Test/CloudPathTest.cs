@@ -101,6 +101,20 @@ namespace FsAzureStorage.Test {
             var level1 = (CloudPath) @"\segment";
             var level2 = (CloudPath) @"\segment\segment";
 
+            foreach (var p in level0.Segments) {
+                Console.WriteLine("0:" + p);
+            }
+
+            foreach (var p in level1.Segments) {
+                Console.WriteLine("1:" + p);
+            }
+
+            foreach (var p in level2.Segments) {
+                Console.WriteLine("2:" + p);
+            }
+
+            new ThreadKeeper();
+
             Assert.AreEqual(0, level0.Level);
             Assert.AreEqual(1, level1.Level);
             Assert.AreEqual(2, level2.Level);
