@@ -9,8 +9,10 @@ It Supports only `BlockBlobs`!
 
 ## Installation 
 
+**There is no stable release yet!!**
+
 To install the Plugin, using integrated plugin installer, do the following:
- * Download the latest [Release](https://github.com/r-Larch/TcBuild/releases): **FsAzureStorage.zip**
+ * Download the latest Release [**FsAzureStorage.zip**](https://github.com/r-Larch/TcBuild/releases)
  * Use Total Commander to navigate to the zip-file and then hit `ENTER` on it.
  * Wait for the installer promt.
  * Follow the instructions of the installer and find the plugin under **Network Neighborhood**
