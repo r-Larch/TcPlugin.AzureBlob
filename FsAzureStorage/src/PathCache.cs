@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using OY.TotalCommander.TcPluginBase.FileSystem;
+using TcPluginBase.FileSystem;
 
 
 namespace LarchSys.FsAzureStorage {

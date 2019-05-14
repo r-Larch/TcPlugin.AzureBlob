@@ -113,8 +113,6 @@ namespace FsAzureStorage.Test {
                 Console.WriteLine("2:" + p);
             }
 
-            new ThreadKeeper();
-
             Assert.AreEqual(0, level0.Level);
             Assert.AreEqual(1, level1.Level);
             Assert.AreEqual(2, level2.Level);

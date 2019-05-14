@@ -1,22 +1,26 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
-using System.Diagnostics;
+using System.Configuration;
 using System.Drawing;
 using System.IO;
+using System.Linq;
+using System.Text;
 using System.Windows.Forms;
 using FsAzureStorage.Resources;
-using OY.TotalCommander.TcPluginBase;
-using OY.TotalCommander.TcPluginBase.Content;
-using OY.TotalCommander.TcPluginBase.FileSystem;
+using TcPluginBase;
+using TcPluginBase.Content;
+using TcPluginBase.FileSystem;
 
 
 namespace LarchSys.FsAzureStorage {
     public class AzureBlobFs : FsPlugin {
+        private readonly Settings _pluginSettings;
         private readonly BlobFileSystem _fs;
 
-        public AzureBlobFs(StringDictionary pluginSettings) : base(pluginSettings)
+        public AzureBlobFs(Settings pluginSettings) : base(pluginSettings)
         {
+            _pluginSettings = pluginSettings;
             BackgroundFlags = FsBackgroundFlags.Download | FsBackgroundFlags.Upload /*| FsBackgroundFlags.AskUser*/;
             Title = "Azure Blob Plugin";
 
@@ -25,16 +29,16 @@ namespace LarchSys.FsAzureStorage {
             TcPluginEventHandler += (sender, args) => {
                 switch (args) {
                     case RequestEventArgs x:
-                        TraceProc(TraceLevel.Info, $"Event: {args.GetType().Name}: CustomTitle: {x.CustomTitle}");
+                        Log.Info($"Event: {args.GetType().Name}: CustomTitle: {x.CustomTitle}");
                         break;
                     case ProgressEventArgs x:
-                        TraceProc(TraceLevel.Info, $"Event: {args.GetType().Name}: PercentDone: {x.PercentDone}");
+                        Log.Info($"Event: {args.GetType().Name}: PercentDone: {x.PercentDone}");
                         break;
                     case ContentProgressEventArgs x:
-                        TraceProc(TraceLevel.Info, $"Event: {args.GetType().Name}: NextBlockData: {x.NextBlockData}");
+                        Log.Info($"Event: {args.GetType().Name}: NextBlockData: {x.NextBlockData}");
                         break;
                     default:
-                        TraceProc(TraceLevel.Info, $"Event: {args.GetType().FullName}");
+                        Log.Info($"Event: {args.GetType().FullName}");
                         break;
                 }
             };
@@ -42,7 +46,7 @@ namespace LarchSys.FsAzureStorage {
 
         ~AzureBlobFs()
         {
-            TraceProc(TraceLevel.Warning, "~AzureBlobFs() is called.");
+            Log.Warning("~AzureBlobFs() is called.");
         }
 
 
@@ -121,7 +125,7 @@ namespace LarchSys.FsAzureStorage {
         public override FileSystemExitCode GetFile(string remoteName, ref string localName, CopyFlags copyFlags, RemoteInfo remoteInfo)
         {
             var loclName = localName;
-            TraceProc(TraceLevel.Warning, $"GetFile({remoteName}, {loclName}, {copyFlags})");
+            Log.Warning($"GetFile({remoteName}, {loclName}, {copyFlags})");
 
             var overWrite = (CopyFlags.Overwrite & copyFlags) != 0;
             var performMove = (CopyFlags.Move & copyFlags) != 0;
@@ -277,37 +281,37 @@ namespace LarchSys.FsAzureStorage {
 
         public override ExecResult ExecuteCommand(TcWindow mainWin, ref string remoteName, string command)
         {
-            if (command == "info") {
-                var info = "";
-                RequestProc(RequestType.DomainInfo, "DomainInfo", "Text", ref info, 1024 * 1024 * 1024 /*1MB*/);
-                throw new Exception(info);
-                //return ExecResult.OK;
-            }
+            switch (command) {
+                case "refresh":
+                    mainWin.Refresh();
+                    return ExecResult.OK;
 
-            else if (command == "cache") {
-                throw new Exception($"All cached patch:\r\n  {string.Join("\r\n  ", _fs._pathCache.Paths)}");
-                //return ExecResult.OK;
-            }
+                case "show cache": {
+                    var sb = new StringBuilder();
+                    sb.AppendLine("Cache:");
+                    _fs._pathCache.Paths.Aggregate(sb, (s, path) => s.AppendLine($"  {path}"));
+                    MessageBox.Show(sb.ToString(), "All cached paths");
+                    return ExecResult.OK;
+                }
 
-            else if (command == "cache clear") {
-                _fs._pathCache.Paths.Clear();
-                MessageBox.Show("Cache cleared", "Cache", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return ExecResult.OK;
-            }
+                case "clear cache":
+                    _fs._pathCache.Paths.Clear();
+                    MessageBox.Show("Cache cleared", "Cache", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return ExecResult.OK;
 
-            else if (command == "refresh") {
-                mainWin.Refresh();
-                return ExecResult.OK;
-            }
+                case "show settings": {
+                    var sb = new StringBuilder();
+                    sb.AppendLine("Settings:");
+                    _pluginSettings.Aggregate(sb, (s, pair) => s.AppendLine($"  {pair.Key}: \t {pair.Value}"));
+                    MessageBox.Show(sb.ToString(), "Plugin Settings");
+                    return ExecResult.OK;
+                }
 
-            else if (command == "cd ..") {
-                //remoteName = ((CloudPath) remoteName).Directory;
-                return ExecResult.Yourself;
-            }
-
-            else {
-                TraceProc(TraceLevel.Info, $"{nameof(ExecuteCommand)}(\"{mainWin.Handle}\", \"{remoteName}\", \"{command}\")");
-                throw new NotImplementedException($"{nameof(ExecuteCommand)}(\"{mainWin.Handle}\", \"{remoteName}\", \"{command}\")");
+                case "cd ..":
+                    return ExecResult.Yourself;
+                default:
+                    Log.Info($"{nameof(ExecuteCommand)}(\"{mainWin.Handle}\", \"{remoteName}\", \"{command}\")");
+                    throw new NotImplementedException($"{nameof(ExecuteCommand)}(\"{mainWin.Handle}\", \"{remoteName}\", \"{command}\")");
             }
 
             //return ExecResult.Yourself;

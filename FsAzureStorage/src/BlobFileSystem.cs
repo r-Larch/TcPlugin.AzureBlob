@@ -8,7 +8,7 @@ using System.Windows.Forms;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
 using Microsoft.WindowsAzure.Storage.Core.Util;
-using OY.TotalCommander.TcPluginBase.FileSystem;
+using TcPluginBase.FileSystem;
 
 
 // ReSharper disable LocalizableElement
