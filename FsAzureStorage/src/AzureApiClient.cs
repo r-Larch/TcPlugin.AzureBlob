@@ -15,7 +15,7 @@ using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using Microsoft.Rest;
 
 
-namespace LarchSys.FsAzureStorage {
+namespace FsAzureStorage {
     public class AzureApiClient {
         public async Task<IEnumerable<StorageConnectionString>> GetStorageAccounts()
         {

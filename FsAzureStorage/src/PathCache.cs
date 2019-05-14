@@ -5,7 +5,7 @@ using System.Linq;
 using TcPluginBase.FileSystem;
 
 
-namespace LarchSys.FsAzureStorage {
+namespace FsAzureStorage {
     internal class PathCache {
         public List<CloudPath> Paths { get; }
 

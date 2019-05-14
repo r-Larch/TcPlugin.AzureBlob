@@ -2,7 +2,7 @@ using System;
 using System.Linq;
 
 
-namespace LarchSys.FsAzureStorage {
+namespace FsAzureStorage {
     public struct CloudPath {
         public string[] Segments { get; set; }
 

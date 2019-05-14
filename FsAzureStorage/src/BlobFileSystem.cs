@@ -13,7 +13,7 @@ using TcPluginBase.FileSystem;
 
 // ReSharper disable LocalizableElement
 
-namespace LarchSys.FsAzureStorage {
+namespace FsAzureStorage {
     internal delegate void FileProgress(string source, string destination, int percentDone);
 
     internal class BlobFileSystem {

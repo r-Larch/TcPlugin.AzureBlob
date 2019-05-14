@@ -11,7 +11,7 @@ using TcPluginBase.Content;
 using TcPluginBase.FileSystem;
 
 
-namespace LarchSys.FsAzureStorage {
+namespace FsAzureStorage {
     public class AzureBlobFs : FsPlugin {
         private readonly Settings _pluginSettings;
         private readonly BlobFileSystem _fs;

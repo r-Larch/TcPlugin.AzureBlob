@@ -4,7 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 
-namespace LarchSys.FsAzureStorage {
+namespace FsAzureStorage {
     public class ThreadKeeper : IDisposable {
         public int MainThreadId { get; }
 
