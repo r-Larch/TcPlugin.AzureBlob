@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -10,23 +9,37 @@ namespace LarchSys.FsAzureStorage {
         public int MainThreadId { get; }
 
         private readonly AutoResetEvent _resetEvent1;
-        private readonly AutoResetEvent _resetEvent2;
         private readonly ConcurrentQueue<MyFunc> _queue;
-        private readonly object _look;
+        private readonly CancellationTokenSource _token;
+        public CancellationToken Token => _token.Token;
 
         private class MyFunc {
             public Func<object> Func { get; set; }
             public object Result { get; set; }
             public Exception Exception { get; set; }
+            public AutoResetEvent Reset { get; set; }
+        }
+
+        public void Cancel()
+        {
+            _token.Cancel();
         }
 
         public ThreadKeeper()
         {
             MainThreadId = Thread.CurrentThread.ManagedThreadId;
-            _look = new object();
             _resetEvent1 = new AutoResetEvent(false);
-            _resetEvent2 = new AutoResetEvent(false);
             _queue = new ConcurrentQueue<MyFunc>();
+            _token = new CancellationTokenSource();
+        }
+
+
+        public void RunInMainThread(Action action)
+        {
+            var _ = RunInMainThread(() => {
+                action();
+                return (object) null;
+            });
         }
 
 
@@ -36,86 +49,71 @@ namespace LarchSys.FsAzureStorage {
                 return func();
             }
 
-            //lock (_look) {
+            var item = new MyFunc {
+                Func = () => (object) func(),
+                Reset = new AutoResetEvent(false),
+            };
 
-            //}
+            _queue.Enqueue(item);
 
-            var lockTaken = false;
-            try {
-                Monitor.TryEnter(_look, millisecondsTimeout: 1, ref lockTaken);
-                if (lockTaken) {
-                    // The critical section.
+            _resetEvent1.Set();
+            WaitOne(item.Reset, Token);
+            item.Reset.Dispose();
 
-                    var item = new MyFunc {Func = () => (object) func()};
-                    _queue.Enqueue(item);
-                    Trace.WriteLine("_queue.Enqueue done");
-
-                    Trace.WriteLine("_resetEvent1.Set();");
-                    _resetEvent1.Set();
-                    Trace.WriteLine("_resetEvent2.WaitOne();");
-                    _resetEvent2.WaitOne();
-
-                    if (item.Exception != null) {
-                        throw item.Exception;
-                    }
-
-                    return (T) item.Result;
-                }
-                else {
-                    // The lock was not acquired.
-                    Trace.WriteLine($"skip [T{Thread.CurrentThread.ManagedThreadId}]");
-
-                    return default;
-                }
+            if (item.Exception != null) {
+                throw item.Exception;
             }
-            finally {
-                // Ensure that the lock is released.
-                if (lockTaken) {
-                    Monitor.Exit(_look);
-                }
-            }
+
+            return (T) item.Result;
         }
 
 
-        public T ExecAsync<T>(Func<Task<T>> asyncFunc)
+        public T ExecAsync<T>(Func<CancellationToken, Task<T>> asyncFunc)
         {
-            var task = asyncFunc();
+            var task = asyncFunc(Token);
             task.ContinueWith(t => {
-                Trace.WriteLine("task done");
-                Trace.WriteLine("task _resetEvent1.Set();");
-                Trace.WriteLine("task _resetEvent2.Set();");
                 _resetEvent1.Set();
-                _resetEvent2.Set();
-            });
+            }, Token);
 
             while (!task.IsCompleted) {
-                Trace.WriteLine("main _resetEvent1.WaitOne();");
-                _resetEvent1.WaitOne();
+                WaitOne(_resetEvent1, Token);
 
                 while (_queue.TryDequeue(out var item)) {
-                    Trace.WriteLine("main _queue.TryDequeue(..);");
                     try {
                         item.Result = item.Func();
                     }
                     catch (Exception e) {
-                        Trace.WriteLine($"main error in func: {e.Message}");
                         item.Exception = e;
                     }
-                }
 
-                _resetEvent2.Set();
-                Trace.WriteLine("main _resetEvent2.Set();");
+                    item.Reset.Set();
+                }
             }
 
             var ret = task.Result;
-
             return ret;
         }
 
+
+        private static bool WaitOne(WaitHandle handle, CancellationToken token)
+        {
+            var n = WaitHandle.WaitAny(new[] {handle, token.WaitHandle}, Timeout.Infinite);
+            switch (n) {
+                case WaitHandle.WaitTimeout:
+                    return false;
+                case 0:
+                    return true;
+                default:
+                    token.ThrowIfCancellationRequested();
+                    return false; // never reached
+            }
+        }
+
+
         public void Dispose()
         {
-            _resetEvent1?.Dispose();
-            _resetEvent2?.Dispose();
+            _token.Dispose();
+            _resetEvent1.Dispose();
         }
     }
 }

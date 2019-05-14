@@ -1,7 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.Configuration;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -140,31 +138,36 @@ namespace LarchSys.FsAzureStorage {
             }
 
             // My ThreadKeeper class is needed hire because calls to ProgressProc must be made from this thread and not from some random async one.
-            using (var exec = new ThreadKeeper2()) {
-                var prevPercent = -1;
+            try {
+                using (var exec = new ThreadKeeper()) {
+                    var prevPercent = -1;
 
-                var ret = exec.ExecAsync(
-                    asyncFunc: (token) => _fs.DownloadFile(
-                        srcFileName: remoteName,
-                        dstFileName: new FileInfo(loclName),
-                        overwrite: overWrite,
-                        fileProgress: (source, destination, percent) => {
-                            if (percent != prevPercent) {
-                                prevPercent = percent;
+                    var ret = exec.ExecAsync(
+                        asyncFunc: (token) => _fs.DownloadFile(
+                            srcFileName: remoteName,
+                            dstFileName: new FileInfo(loclName),
+                            overwrite: overWrite,
+                            fileProgress: (source, destination, percent) => {
+                                if (percent != prevPercent) {
+                                    prevPercent = percent;
 
-                                exec.RunInMainThread(() => {
-                                    if (ProgressProc(source, destination, percent) == 1) {
-                                        exec.Cancel();
-                                    }
-                                });
-                            }
-                        },
-                        deleteAfter: performMove,
-                        token
-                    )
-                );
+                                    exec.RunInMainThread(() => {
+                                        if (ProgressProc(source, destination, percent) == 1) {
+                                            exec.Cancel();
+                                        }
+                                    });
+                                }
+                            },
+                            deleteAfter: performMove,
+                            token
+                        )
+                    );
 
-                return ret;
+                    return ret;
+                }
+            }
+            catch (OperationCanceledException) {
+                return FileSystemExitCode.UserAbort;
             }
         }
 
@@ -185,32 +188,37 @@ namespace LarchSys.FsAzureStorage {
                 return FileSystemExitCode.FileNotFound;
             }
 
-            // My ThreadKeeper class is needed hire because calls to ProgressProc must be made from this thread and not from some random async one.
-            using (var exec = new ThreadKeeper2()) {
-                var prevPercent = -1;
+            // My ThreadKeeper class is needed here because calls to ProgressProc must be made from this thread and not from some random async one.
+            try {
+                using (var exec = new ThreadKeeper()) {
+                    var prevPercent = -1;
 
-                var ret = exec.ExecAsync(
-                    asyncFunc: (token) => _fs.UploadFile(new FileInfo(localName), rmtName, overwrite: overWrite,
-                        fileProgress: (source, destination, percent) => {
-                            if (percent != prevPercent) {
-                                prevPercent = percent;
+                    var ret = exec.ExecAsync(
+                        asyncFunc: (token) => _fs.UploadFile(new FileInfo(localName), rmtName, overwrite: overWrite,
+                            fileProgress: (source, destination, percent) => {
+                                if (percent != prevPercent) {
+                                    prevPercent = percent;
 
-                                exec.RunInMainThread(() => {
-                                    if (ProgressProc(source, destination, percent) == 1) {
-                                        exec.Cancel();
-                                    }
-                                });
-                            }
-                        },
-                        token: token
-                    )
-                );
+                                    exec.RunInMainThread(() => {
+                                        if (ProgressProc(source, destination, percent) == 1) {
+                                            exec.Cancel();
+                                        }
+                                    });
+                                }
+                            },
+                            token: token
+                        )
+                    );
 
-                if (performMove && ret == FileSystemExitCode.OK) {
-                    File.Delete(localName);
+                    if (performMove && ret == FileSystemExitCode.OK) {
+                        File.Delete(localName);
+                    }
+
+                    return ret;
                 }
-
-                return ret;
+            }
+            catch (OperationCanceledException) {
+                return FileSystemExitCode.UserAbort;
             }
         }
 
