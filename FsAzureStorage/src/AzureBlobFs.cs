@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using FsAzureStorage.Resources;
 using TcPluginBase;
@@ -19,7 +22,6 @@ namespace FsAzureStorage {
         public AzureBlobFs(Settings pluginSettings) : base(pluginSettings)
         {
             _pluginSettings = pluginSettings;
-            BackgroundFlags = FsBackgroundFlags.Download | FsBackgroundFlags.Upload /*| FsBackgroundFlags.AskUser*/;
             Title = "Azure Blob Plugin";
 
             _fs = new BlobFileSystem();
@@ -40,45 +42,25 @@ namespace FsAzureStorage {
                         break;
                 }
             };
-        }
 
-        ~AzureBlobFs()
-        {
-            Log.Warning("~AzureBlobFs() is called.");
+            // to debug!
+            //AppDomain.CurrentDomain.FirstChanceException += (sender, eventArgs) => {
+            //    Log.Error($"FirstChanceException: " + eventArgs.Exception.ToString());
+            //};
         }
 
 
         #region IFsPlugin Members
 
-        public override object FindFirst(string path, out FindData findData)
+        public override IEnumerable<FindData> GetFiles(string path)
         {
-            var enumerator = _fs.ListDirectory(path).GetEnumerator();
-
-            if (enumerator.MoveNext()) {
-                findData = enumerator.Current;
-                return enumerator;
+            try {
+                return _fs.ListDirectory(path);
             }
-
-            // empty list
-            findData = null;
-            return null;
-        }
-
-        public override bool FindNext(ref object o, out FindData findData)
-        {
-            if (o is IEnumerator<FindData> fsEnum) {
-                if (fsEnum.MoveNext()) {
-                    var current = fsEnum.Current;
-                    if (current != null) {
-                        findData = current;
-                        return true;
-                    }
-                }
+            catch (Exception e) {
+                Log.Error(e.ToString());
+                return new FindData[0];
             }
-
-            // end of sequence
-            findData = null;
-            return false;
         }
 
 
@@ -120,10 +102,43 @@ namespace FsAzureStorage {
         }
 
 
-        public override FileSystemExitCode GetFile(string remoteName, ref string localName, CopyFlags copyFlags, RemoteInfo remoteInfo)
+        public override async Task<FileSystemExitCode> PutFileAsync(string localName, string remoteName, CopyFlags copyFlags, Action<int> setProgress, CancellationToken token)
         {
-            var loclName = localName;
-            Log.Warning($"GetFile({remoteName}, {loclName}, {copyFlags})");
+            var overWrite = (CopyFlags.Overwrite & copyFlags) != 0;
+            var performMove = (CopyFlags.Move & copyFlags) != 0;
+            var resume = (CopyFlags.Resume & copyFlags) != 0;
+
+            if (resume) {
+                return FileSystemExitCode.NotSupported;
+            }
+
+            if (!File.Exists(localName)) {
+                return FileSystemExitCode.FileNotFound;
+            }
+
+            var prevPercent = -1;
+            var ret = await _fs.UploadFile(new FileInfo(localName), remoteName, overwrite: overWrite,
+                fileProgress: (source, destination, percent) => {
+                    if (percent != prevPercent) {
+                        prevPercent = percent;
+
+                        setProgress(percent);
+                    }
+                },
+                token: token
+            );
+
+            if (performMove && ret == FileSystemExitCode.OK) {
+                File.Delete(localName);
+            }
+
+            return ret;
+        }
+
+
+        public override async Task<FileSystemExitCode> GetFileAsync(string remoteName, string localName, CopyFlags copyFlags, RemoteInfo remoteInfo, Action<int> setProgress, CancellationToken token)
+        {
+            Log.Warning($"GetFile({remoteName}, {localName}, {copyFlags})");
 
             var overWrite = (CopyFlags.Overwrite & copyFlags) != 0;
             var performMove = (CopyFlags.Move & copyFlags) != 0;
@@ -137,89 +152,21 @@ namespace FsAzureStorage {
                 return FileSystemExitCode.FileExists;
             }
 
-            // My ThreadKeeper class is needed hire because calls to ProgressProc must be made from this thread and not from some random async one.
-            try {
-                using (var exec = new ThreadKeeper()) {
-                    var prevPercent = -1;
+            var prevPercent = -1;
+            return await _fs.DownloadFile(
+                srcFileName: remoteName,
+                dstFileName: new FileInfo(localName),
+                overwrite: overWrite,
+                fileProgress: (source, destination, percent) => {
+                    if (percent != prevPercent) {
+                        prevPercent = percent;
 
-                    var ret = exec.ExecAsync(
-                        asyncFunc: (token) => _fs.DownloadFile(
-                            srcFileName: remoteName,
-                            dstFileName: new FileInfo(loclName),
-                            overwrite: overWrite,
-                            fileProgress: (source, destination, percent) => {
-                                if (percent != prevPercent) {
-                                    prevPercent = percent;
-
-                                    exec.RunInMainThread(() => {
-                                        if (ProgressProc(source, destination, percent) == 1) {
-                                            exec.Cancel();
-                                        }
-                                    });
-                                }
-                            },
-                            deleteAfter: performMove,
-                            token
-                        )
-                    );
-
-                    return ret;
-                }
-            }
-            catch (OperationCanceledException) {
-                return FileSystemExitCode.UserAbort;
-            }
-        }
-
-
-        public override FileSystemExitCode PutFile(string localName, ref string remoteName, CopyFlags copyFlags)
-        {
-            var rmtName = remoteName;
-
-            var overWrite = (CopyFlags.Overwrite & copyFlags) != 0;
-            var performMove = (CopyFlags.Move & copyFlags) != 0;
-            var resume = (CopyFlags.Resume & copyFlags) != 0;
-
-            if (resume) {
-                return FileSystemExitCode.NotSupported;
-            }
-
-            if (!File.Exists(localName)) {
-                return FileSystemExitCode.FileNotFound;
-            }
-
-            // My ThreadKeeper class is needed here because calls to ProgressProc must be made from this thread and not from some random async one.
-            try {
-                using (var exec = new ThreadKeeper()) {
-                    var prevPercent = -1;
-
-                    var ret = exec.ExecAsync(
-                        asyncFunc: (token) => _fs.UploadFile(new FileInfo(localName), rmtName, overwrite: overWrite,
-                            fileProgress: (source, destination, percent) => {
-                                if (percent != prevPercent) {
-                                    prevPercent = percent;
-
-                                    exec.RunInMainThread(() => {
-                                        if (ProgressProc(source, destination, percent) == 1) {
-                                            exec.Cancel();
-                                        }
-                                    });
-                                }
-                            },
-                            token: token
-                        )
-                    );
-
-                    if (performMove && ret == FileSystemExitCode.OK) {
-                        File.Delete(localName);
+                        setProgress(percent);
                     }
-
-                    return ret;
-                }
-            }
-            catch (OperationCanceledException) {
-                return FileSystemExitCode.UserAbort;
-            }
+                },
+                deleteAfter: performMove,
+                token
+            );
         }
 
 

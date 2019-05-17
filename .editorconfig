@@ -2,8 +2,10 @@
 [*]
 indent_style = space
 
-# Code files
 [*.{cs,csx}]
 indent_size = 4
 insert_final_newline = true
 charset = utf-8
+
+[*.config]
+indent_size = 2
