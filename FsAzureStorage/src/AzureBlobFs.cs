@@ -1,13 +1,12 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows.Forms;
+using System.Windows;
+using FsAzureStorage.Forms;
 using FsAzureStorage.Resources;
 using TcPluginBase;
 using TcPluginBase.Content;
@@ -214,7 +213,7 @@ namespace FsAzureStorage {
 
                 case "clear cache":
                     _fs._pathCache.Paths.Clear();
-                    MessageBox.Show("Cache cleared", "Cache", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBox.Show("Cache cleared", "Cache", MessageBoxButton.OK, MessageBoxImage.Information);
                     return ExecResult.Ok;
 
                 case "show settings": {
@@ -347,7 +346,9 @@ namespace FsAzureStorage {
 
             switch (path.Level) {
                 case 2 when path.AccountName == "settings":
-                    ProcessSettings(path);
+                    var window = new SettingsWindow();
+                    window.ShowDialog();
+                    //ProcessSettings(path);
                     return ExecResult.Ok;
             }
 
