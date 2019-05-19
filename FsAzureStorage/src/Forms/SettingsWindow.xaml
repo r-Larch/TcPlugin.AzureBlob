@@ -5,8 +5,32 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:FsAzureStorage.Forms"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
+        Title="Connect to ..." Height="450" Width="800">
     <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition />
+            <ColumnDefinition Width="150"/>
+        </Grid.ColumnDefinitions>
+
+        <TextBlock Grid.Column="0" Grid.Row="0" Margin="10 5 10 0">Connect to:</TextBlock>
+        <StackPanel Grid.Column="0" Grid.Row="1" Margin="10 10 0 10" Background="Red">
+            <TextBlock>Tree</TextBlock>
+        </StackPanel>
+
+        <StackPanel Grid.Column="1" Grid.Row="1" Margin="10" Background="Aqua">
+            <Button Margin="0 0 0 10">_Connect</Button>
+
+            <Button Margin="0 0 0 3">_New Connection</Button>
+            <Button Margin="0 0 0 3">Du_plicate entry</Button>
+            <Button Margin="0 0 0 10">New _Folder</Button>
+
+            <Button Margin="0 0 0 3">_Edit</Button>
+            <Button Margin="0 0 0 3">_Delete</Button>
+        </StackPanel>
 
     </Grid>
 </Window>

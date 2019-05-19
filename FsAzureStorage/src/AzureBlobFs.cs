@@ -346,7 +346,7 @@ namespace FsAzureStorage {
 
             switch (path.Level) {
                 case 2 when path.AccountName == "settings":
-                    var window = new SettingsWindow();
+                    var window = new SettingsWindow("Azure Storage Account");
                     window.ShowDialog();
                     //ProcessSettings(path);
                     return ExecResult.Ok;
