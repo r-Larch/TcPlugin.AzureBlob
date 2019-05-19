@@ -17,7 +17,7 @@ using Microsoft.Rest;
 
 namespace FsAzureStorage {
     public class AzureApiClient {
-        public async Task<IEnumerable<StorageConnectionString>> GetStorageAccounts()
+        public async Task<IEnumerable<StorageConnectionString>> GetStorageAccounts(Action<string> log)
         {
             var config = new AdalConfiguration();
             var tokenCache = new TokenCache();
@@ -26,12 +26,12 @@ namespace FsAzureStorage {
             var userTokenProvider = new PopupUserTokenProvider(context, config, UserIdentifier.AnyUser);
             var tokenCredentials = new TokenCredentials(userTokenProvider);
 
-            MessageBox.Show("This will open the Microsoft single sign on Screen!\nOK to continue.");
-
             var subscriptions = await new SubscriptionClient(tokenCredentials).Subscriptions.ListAsync();
 
             var accounts = new List<Task<StorageConnectionString>>();
             foreach (var subscription in subscriptions) {
+                log($"Subscription: {subscription.DisplayName}");
+
                 var client = new StorageManagementClient(tokenCredentials) {SubscriptionId = subscription.SubscriptionId};
                 var list = await client.StorageAccounts.ListAsync();
 
@@ -41,6 +41,8 @@ namespace FsAzureStorage {
                     var key = result.Keys.FirstOrDefault(x => x.Permissions == KeyPermission.Full) ?? result.Keys.FirstOrDefault();
 
                     var uri = new Uri(account.PrimaryEndpoints.Blob);
+
+                    log($"  {account.Name}");
 
                     return new StorageConnectionString {
                         DefaultEndpointsProtocol = uri.Scheme,

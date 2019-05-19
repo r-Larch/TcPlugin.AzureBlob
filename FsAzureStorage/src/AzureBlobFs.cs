@@ -52,25 +52,19 @@ namespace FsAzureStorage {
 
         #region IFsPlugin Members
 
-        public override IEnumerable<FindData> GetFiles(string path)
+        public override IEnumerable<FindData> GetFiles(RemotePath path)
         {
-            try {
-                return _fs.ListDirectory(path);
-            }
-            catch (Exception e) {
-                Log.Error(e.ToString());
-                return new FindData[0];
-            }
+            return _fs.ListDirectory(path);
         }
 
 
-        public override bool MkDir(string dir)
+        public override bool MkDir(RemotePath dir)
         {
             return _fs.CacheDirectory(dir);
         }
 
 
-        public override bool RemoveDir(string dirName)
+        public override bool RemoveDir(RemotePath dirName)
         {
             _fs.RemoveVirtualDir(dirName);
 
@@ -79,13 +73,13 @@ namespace FsAzureStorage {
             return false;
         }
 
-        public override bool DeleteFile(string fileName)
+        public override bool DeleteFile(RemotePath fileName)
         {
             return _fs.DeleteFile(fileName).Result;
         }
 
 
-        public override FileSystemExitCode RenMovFile(string oldName, string newName, bool move, bool overwrite, RemoteInfo remoteInfo)
+        public override FileSystemExitCode RenMovFile(RemotePath oldName, RemotePath newName, bool move, bool overwrite, RemoteInfo remoteInfo)
         {
             ProgressProc(oldName, newName, 0);
             try {
@@ -102,7 +96,7 @@ namespace FsAzureStorage {
         }
 
 
-        public override async Task<FileSystemExitCode> PutFileAsync(string localName, string remoteName, CopyFlags copyFlags, Action<int> setProgress, CancellationToken token)
+        public override async Task<FileSystemExitCode> PutFileAsync(string localName, RemotePath remoteName, CopyFlags copyFlags, Action<int> setProgress, CancellationToken token)
         {
             var overWrite = (CopyFlags.Overwrite & copyFlags) != 0;
             var performMove = (CopyFlags.Move & copyFlags) != 0;
@@ -136,7 +130,7 @@ namespace FsAzureStorage {
         }
 
 
-        public override async Task<FileSystemExitCode> GetFileAsync(string remoteName, string localName, CopyFlags copyFlags, RemoteInfo remoteInfo, Action<int> setProgress, CancellationToken token)
+        public override async Task<FileSystemExitCode> GetFileAsync(RemotePath remoteName, string localName, CopyFlags copyFlags, RemoteInfo remoteInfo, Action<int> setProgress, CancellationToken token)
         {
             Log.Warning($"GetFile({remoteName}, {localName}, {copyFlags})");
 
@@ -170,34 +164,29 @@ namespace FsAzureStorage {
         }
 
 
-        public override ExtractIconResult ExtractCustomIcon(ref string remoteName, ExtractIconFlags extractFlags, out Icon icon)
+        public override ExtractIconResult ExtractCustomIcon(RemotePath remoteName, ExtractIconFlags extractFlags)
         {
             var path = new CloudPath(remoteName);
 
             if (path.Path.EndsWith("..")) {
-                icon = null;
                 return ExtractIconResult.UseDefault;
             }
 
             if (path.Level == 1) {
                 switch (path) {
                     case "/settings":
-                        icon = Icons.settings_icon;
-                        return ExtractIconResult.Extracted;
+                        return ExtractIconResult.Extracted(Icons.settings_icon);
 
                     default:
                         // accounts
-                        icon = Icons.storage_account;
-                        return ExtractIconResult.Extracted;
+                        return ExtractIconResult.Extracted(Icons.storage_account);
                 }
             }
 
             if (path.Level == 2) {
-                icon = Icons.container_icon;
-                return ExtractIconResult.Extracted;
+                return ExtractIconResult.Extracted(Icons.container_icon);
             }
 
-            icon = null;
             return ExtractIconResult.UseDefault;
         }
 
@@ -208,207 +197,191 @@ namespace FsAzureStorage {
         }
 
 
-        public override bool Disconnect(string disconnectRoot)
-        {
-            bool canDisconnect = false;
-            // private bool canDisconnect;
-            // private string currentConnection;
-            // private List<string> ftpConnections = new List<string>();
-            //
-            // TODO what to do??
-            if (canDisconnect) {
-                var msg = $"Do you really want to disconnect from \"{disconnectRoot}\"";
-                var s = "Yes";
-                if (RequestProc(RequestType.MsgYesNo, "Disconnect?", msg, ref s, 45)) {
-                    canDisconnect = false;
-                    LogProc(LogMsgType.Details, $"Trying to disconnect {disconnectRoot} ...");
-                    //LogProc(LogMsgType.Disconnect, null);
-                    // TODO disconnect
-                    return true;
-                }
-
-                MessageBox.Show("Sorry, we are not able to disconnect " + disconnectRoot, "Can not disconnect", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return false;
-            }
-
-            return false;
-        }
-
-        public override ExecResult ExecuteCommand(TcWindow mainWin, ref string remoteName, string command)
+        public override ExecResult ExecuteCommand(TcWindow mainWin, RemotePath remoteName, string command)
         {
             switch (command) {
                 case "refresh":
                     mainWin.Refresh();
-                    return ExecResult.OK;
+                    return ExecResult.Ok;
 
                 case "show cache": {
                     var sb = new StringBuilder();
                     sb.AppendLine("Cache:");
                     _fs._pathCache.Paths.Aggregate(sb, (s, path) => s.AppendLine($"  {path}"));
                     MessageBox.Show(sb.ToString(), "All cached paths");
-                    return ExecResult.OK;
+                    return ExecResult.Ok;
                 }
 
                 case "clear cache":
                     _fs._pathCache.Paths.Clear();
                     MessageBox.Show("Cache cleared", "Cache", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    return ExecResult.OK;
+                    return ExecResult.Ok;
 
                 case "show settings": {
                     var sb = new StringBuilder();
                     sb.AppendLine("Settings:");
                     _pluginSettings.Aggregate(sb, (s, pair) => s.AppendLine($"  {pair.Key}: \t {pair.Value}"));
                     MessageBox.Show(sb.ToString(), "Plugin Settings");
-                    return ExecResult.OK;
+                    return ExecResult.Ok;
                 }
 
                 case "cd ..":
                     return ExecResult.Yourself;
                 default:
                     Log.Info($"{nameof(ExecuteCommand)}(\"{mainWin.Handle}\", \"{remoteName}\", \"{command}\")");
-                    throw new NotImplementedException($"{nameof(ExecuteCommand)}(\"{mainWin.Handle}\", \"{remoteName}\", \"{command}\")");
+                    //throw new NotImplementedException($"{nameof(ExecuteCommand)}(\"{mainWin.Handle}\", \"{remoteName}\", \"{command}\")");
+                    break;
             }
 
-            //return ExecResult.Yourself;
 
-            //ExecResult result = ExecResult.Yourself;
-            //if (String.IsNullOrEmpty(command))
-            //    return result;
-            //string[] cmdPars = command.Split(new[] {' ', '\\'});
-            //if (cmdPars[0].Equals("log", StringComparison.InvariantCultureIgnoreCase)) {
-            //    string logString = ((cmdPars.Length < 3 || String.IsNullOrEmpty(cmdPars[2])) ? null : cmdPars[2]);
-            //    if (cmdPars.Length > 1) {
-            //        canDisconnect = true;
-            //        if (cmdPars[1].Equals("connect", StringComparison.InvariantCultureIgnoreCase)) {
-            //            //msgType = LogMsgType.Connect;
-            //            currentConnection = logString == null ? Title : logString;
-            //            LogProc(LogMsgType.Connect, "CONNECT \\" + currentConnection);
-            //            ftpConnections.Add(currentConnection);
-            //            LogProc(LogMsgType.Details, String.Format("Connection to {0} established.", currentConnection));
-            //        }
-            //        else if (cmdPars[1].Equals("disconnect", StringComparison.InvariantCultureIgnoreCase)) {
-            //            LogProc(LogMsgType.Disconnect, "Disconnect from: " + logString);
-            //        }
-            //        else if (cmdPars[1].Equals("details", StringComparison.InvariantCultureIgnoreCase)) {
-            //            LogProc(LogMsgType.Details, logString);
-            //        }
-            //        else if (cmdPars[1].Equals("trComplete", StringComparison.InvariantCultureIgnoreCase)) {
-            //            LogProc(LogMsgType.TransferComplete, "Transfer complete: \\" + remoteName + " -> " + logString);
-            //        }
-            //        else if (cmdPars[1].Equals("error", StringComparison.InvariantCultureIgnoreCase)) {
-            //            LogProc(LogMsgType.ImportantError, logString);
-            //        }
-            //        else if (cmdPars[1].Equals("opComplete", StringComparison.InvariantCultureIgnoreCase)) {
-            //            LogProc(LogMsgType.OperationComplete, logString);
-            //        }
+            if (string.IsNullOrEmpty(command)) {
+                return ExecResult.Yourself;
+            }
 
-            //        result = ExecResult.OK;
-            //    }
+            var cmdPars = command.Split(' ', '\\');
 
-            //    //currentConnection = "\\" + ((cmdPars.Length < 2 || String.IsNullOrEmpty(cmdPars[1])) ? Title : cmdPars[1]);
-            //    //LogProc(LogMsgType.Connect, "CONNECT " + currentConnection);
-            //    //if (cmdPars.Length > 2)
-            //    //    LogProc(LogMsgType.Details,
-            //    //        String.Format("Connection to {0} established with {1}.", currentConnection, cmdPars[2]));
-            //    //result = ExecResult.OK;
-            //}
-            //else if (cmdPars[0].Equals("req", StringComparison.InvariantCultureIgnoreCase)) {
-            //    RequestType requestType = RequestType.Other;
-            //    if (cmdPars.Length > 1) {
-            //        if (cmdPars[1].Equals("UserName", StringComparison.InvariantCultureIgnoreCase))
-            //            requestType = RequestType.UserName;
-            //        else if (cmdPars[1].Equals("Password", StringComparison.InvariantCultureIgnoreCase))
-            //            requestType = RequestType.Password;
-            //        else if (cmdPars[1].Equals("Account", StringComparison.InvariantCultureIgnoreCase))
-            //            requestType = RequestType.Account;
-            //        else if (cmdPars[1].Equals("TargetDir", StringComparison.InvariantCultureIgnoreCase))
-            //            requestType = RequestType.TargetDir;
-            //        else if (cmdPars[1].Equals("url", StringComparison.InvariantCultureIgnoreCase))
-            //            requestType = RequestType.Url;
-            //        else if (cmdPars[1].Equals("DomainInfo", StringComparison.InvariantCultureIgnoreCase))
-            //            requestType = RequestType.DomainInfo;
-            //    }
+            if (cmdPars[0] == "req") {
+                /*
+                req UserName testValue
+                req Password testValue
+                req Account testValue
+                req TargetDir testValue
+                req url testValue
+                req Other testValue
+                 */
 
-            //    string customText = (requestType == RequestType.Other) ? "Input value:" : null;
-            //    string testValue = (cmdPars.Length > 2) ? cmdPars[2] : null;
-            //    if (RequestProc(requestType, "Request Callback Test", customText, ref testValue, 2048)) {
-            //        MessageBox.Show(testValue, String.Format("Request for '{0}' returned:", requestType.ToString()),
-            //            MessageBoxButtons.OK, MessageBoxIcon.Information);
-            //        result = ExecResult.OK;
-            //    }
-            //}
-            //else if (cmdPars[0].Equals("crypt", StringComparison.InvariantCultureIgnoreCase)) {
-            //    string connectionName = "LFS Test Connection";
-            //    if (cmdPars.Length > 2)
-            //        connectionName = cmdPars[2];
-            //    string password = "qwerty";
-            //    if (cmdPars.Length > 3)
-            //        password = cmdPars[3];
-            //    CryptResult cryptRes = CryptResult.PasswordNotFound;
-            //    if (cmdPars.Length > 1) {
-            //        if (cmdPars[1].Equals("Save", StringComparison.InvariantCultureIgnoreCase))
-            //            cryptRes = Password.Save(connectionName, password);
-            //        else if (cmdPars[1].Equals("Load", StringComparison.InvariantCultureIgnoreCase))
-            //            cryptRes = Password.Load(connectionName, ref password);
-            //        else if (cmdPars[1].Equals("LoadNoUi", StringComparison.InvariantCultureIgnoreCase))
-            //            cryptRes = Password.LoadNoUI(connectionName, ref password);
-            //        else if (cmdPars[1].Equals("Copy", StringComparison.InvariantCultureIgnoreCase))
-            //            cryptRes = Password.Copy(connectionName, password);
-            //        else if (cmdPars[1].Equals("Move", StringComparison.InvariantCultureIgnoreCase))
-            //            cryptRes = Password.Move(connectionName, password);
-            //        else if (cmdPars[1].Equals("Delete", StringComparison.InvariantCultureIgnoreCase))
-            //            cryptRes = Password.Delete(connectionName);
-            //    }
+                var customTitle = "Request Callback Test";
+                var preValue = cmdPars.Length > 2 ? cmdPars[2] : null;
 
-            //    string s = String.Format("Crypt for '{0}' returned '{1}'", cmdPars[1], cryptRes.ToString());
-            //    if (cryptRes == CryptResult.OK)
-            //        s += " (" + password + ")";
-            //    string testValue = null;
-            //    RequestProc(RequestType.MsgYesNo, null, s, ref testValue, 0);
-            //    result = ExecResult.OK;
-            //}
+                var res = string.Empty;
 
-            //return result;
+                if (cmdPars.Length > 1) {
+                    switch (cmdPars[1]) {
+                        case "UserName":
+                            res = Prompt.AskUserName(customTitle, preValue);
+                            break;
+
+                        case "Password":
+                            res = Prompt.AskPassword(customTitle, preValue);
+                            break;
+
+                        case "Account":
+                            res = Prompt.AskAccount(customTitle, preValue);
+                            break;
+
+                        case "TargetDir":
+                            res = Prompt.AskTargetDir(customTitle, preValue);
+                            break;
+
+                        case "url":
+                            res = Prompt.AskUrl(customTitle, preValue);
+                            break;
+
+                        case "Other":
+                        default:
+                            var customText = "Input value:";
+                            res = Prompt.AskOther(customTitle, customText, preValue);
+                            break;
+                    }
+                }
+
+                if (res != null) {
+                    Prompt.MsgOk($"Request for '{cmdPars[1]}' returned:", res);
+                }
+
+                return ExecResult.Ok;
+            }
+            else if (cmdPars[0] == "crypt") {
+                /*
+                crypt Save MyConn passw0rd
+                crypt Load MyConn
+                crypt LoadNoUI MyConn
+                crypt Copy MyConn dstConn
+                crypt Move MyConn dstConn
+                crypt Delete MyConn
+                 */
+
+                var func = cmdPars.Length > 1 ? cmdPars[1] : null;
+                var connectionName = cmdPars.Length > 2 ? cmdPars[2] : "Test Connection";
+                var password = cmdPars.Length > 3 ? cmdPars[3] : null;
+
+                var cryptRes = CryptResult.PasswordNotFound;
+
+                switch (func) {
+                    case "Save":
+                        cryptRes = Password.Save(connectionName, password);
+                        break;
+                    case "Load":
+                        cryptRes = Password.Load(connectionName, ref password);
+                        break;
+                    case "LoadNoUI":
+                        cryptRes = Password.LoadNoUI(connectionName, ref password);
+                        break;
+                    case "Copy":
+                        cryptRes = Password.Copy(connectionName, password);
+                        break;
+                    case "Move":
+                        cryptRes = Password.Move(connectionName, password);
+                        break;
+                    case "Delete":
+                        cryptRes = Password.Delete(connectionName);
+                        break;
+                }
+
+                Prompt.MsgOk(null, $"Crypt for '{func}' returned '{cryptRes}'\r({password})");
+                return ExecResult.Ok;
+            }
+
+            return ExecResult.Yourself;
         }
 
-        public override ExecResult ExecuteProperties(TcWindow mainWin, string remoteName)
+
+        public override ExecResult ExecuteProperties(TcWindow mainWin, RemotePath remoteName)
         {
             return ExecResult.Yourself;
         }
 
-        public override ExecResult ExecuteOpen(TcWindow mainWin, ref string remoteName)
+        public override ExecResult ExecuteOpen(TcWindow mainWin, RemotePath remoteName)
         {
             CloudPath path = remoteName;
 
             switch (path.Level) {
                 case 2 when path.AccountName == "settings":
-                    _fs.ProcessSettings(path);
-                    MessageBox.Show("Ok Accounts loaded!", "Success!"); // TODO improve
-                    return ExecResult.OK;
+                    ProcessSettings(path);
+                    return ExecResult.Ok;
             }
-
-
-            //if (Password.Save("store", "passw0rd") == CryptResult.OK) {
-            //}
 
             return ExecResult.Yourself;
         }
 
 
-        //public override PreviewBitmapResult GetPreviewBitmap(ref string remoteName, int width, int height, out Bitmap returnedBitmap)
+        private void ProcessSettings(CloudPath path)
+        {
+            if (path.ContainerName == "Connect to Azure") {
+                var connection = GetConnection("\\" + path.AccountName);
+                connection.WriteStatus("Connecting to Azure");
+                connection.WriteStatus("Opening sign on Screen");
+                connection.WriteStatus("Please Wait..");
+                var accounts = new AzureApiClient().GetStorageAccounts(connection.WriteStatus).Result;
+                _fs.AddAccounts(accounts);
+                connection.WriteStatus("Successful");
+            }
+        }
+
+
+        //public override PreviewBitmapResult GetPreviewBitmap(RemotePath remoteName, int width, int height)
         //{
-        //    returnedBitmap = null;
         //    return PreviewBitmapResult.None;
         //}
 
-        //public override bool SetAttr(string remoteName, FileAttributes attr)
+        //public override bool SetAttr(RemotePath remoteName, FileAttributes attr)
         //{
-        //    throw new PluginNotImplementedException();
+        //    return false;
         //}
 
-        //public override bool SetTime(string remoteName, DateTime? creationTime, DateTime? lastAccessTime, DateTime? lastWriteTime)
+        //public override bool SetTime(RemotePath remoteName, DateTime? creationTime, DateTime? lastAccessTime, DateTime? lastWriteTime)
         //{
-        //    throw new PluginNotImplementedException();
+        //    return false;
         //}
 
         #endregion IFsPlugin Members

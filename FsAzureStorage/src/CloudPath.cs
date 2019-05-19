@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using TcPluginBase.FileSystem;
 
 
 namespace FsAzureStorage {
@@ -71,6 +72,16 @@ namespace FsAzureStorage {
         public static implicit operator CloudPath(string path)
         {
             return new CloudPath(path);
+        }
+
+        public static implicit operator CloudPath(RemotePath path)
+        {
+            return new CloudPath(path);
+        }
+
+        public static implicit operator RemotePath(CloudPath path)
+        {
+            return new RemotePath(path);
         }
 
         public override string ToString()

@@ -47,22 +47,12 @@ namespace FsAzureStorage {
         private IEnumerable<FindData> GetSettings()
         {
             yield return new FindData("Connect to Azure");
-            //yield return new FindData("Add Manually");
         }
 
-        public void ProcessSettings(CloudPath path)
+        public void AddAccounts(IEnumerable<StorageConnectionString> accounts)
         {
-            try {
-                if (path.ContainerName == "Connect to Azure") {
-                    var accounts = new AzureApiClient().GetStorageAccounts().Result;
-
-                    _accounts.AddRange(accounts);
-                    _accounts = _accounts.GroupBy(x => x.ToString()).Select(_ => _.First()).ToList();
-                }
-            }
-            catch (Exception e) {
-                MessageBox.Show(e.ToString(), "Error"); // TODO remove
-            }
+            _accounts.AddRange(accounts);
+            _accounts = _accounts.GroupBy(x => x.ToString()).Select(_ => _.First()).ToList();
         }
 
 
